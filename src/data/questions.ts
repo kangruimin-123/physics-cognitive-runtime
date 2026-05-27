@@ -1,10 +1,40 @@
-export const questions = [
+import type { ModelId } from "./models";
+
+export type Question = {
+  id: string;
+  title: string;
+  model: ModelId;
+  prompt: string;
+  flow: string[];
+  stem: string;
+  options: Array<{
+    id: string;
+    text: string;
+    misconception?: string;
+  }>;
+  answer: string;
+  correct: string;
+  wrong: string;
+  transfer: string;
+};
+
+export const questions: Question[] = [
   {
     id: "train-1",
     title: "专项训练第1题",
     model: "float",
     prompt: "同一物块在不同液体中静止，判断漂浮、悬浮、沉底时的受力关系。",
     flow: ["调节物液密度", "预测状态", "观察三力箭头", "判断 F浮 与 G", "完成原题", "归入漂浮母题"],
+    stem: "物块静止漂浮在液面上时，下列关于浮力和重力的关系正确的是？",
+    options: [
+      { id: "A", text: "浮力大于重力，所以物块能浮起来", misconception: "把上浮过程和漂浮静止混为一谈" },
+      { id: "B", text: "浮力等于重力，物块处于受力平衡" },
+      { id: "C", text: "浮力小于重力，但水托住了它", misconception: "忽略静止时合力必须为零" },
+    ],
+    answer: "B",
+    correct: "对。漂浮是最终静止状态，合力为零，所以 F浮=G。上浮过程中才可能出现 F浮>G。",
+    wrong: "关键不是“在上面”就说明浮力更大，而是“静止”说明合力为零。",
+    transfer: "看到鸡蛋、船、试管漂浮，都先写 F浮=G，再讨论排开液体体积。",
   },
   {
     id: "school-1",
@@ -12,6 +42,16 @@ export const questions = [
     model: "float",
     prompt: "鸡蛋在盐水中逐渐上浮并最终漂浮，分析浮力和重力的大小关系。",
     flow: ["预测上浮原因", "调高液体密度", "观察漂浮比例", "高亮 F浮=G", "完成判断", "错因纠偏"],
+    stem: "向水中加盐后，鸡蛋从下沉变为漂浮。漂浮静止后，鸡蛋受到的浮力如何变化？",
+    options: [
+      { id: "A", text: "漂浮静止后浮力仍大于重力", misconception: "把继续上浮和最终漂浮混淆" },
+      { id: "B", text: "漂浮静止后浮力等于重力" },
+      { id: "C", text: "盐水密度变大，所以浮力一定不断变大", misconception: "没有同时观察 V排 会变小" },
+    ],
+    answer: "B",
+    correct: "对。盐水密度变大使鸡蛋能排开更少液体就平衡，最终仍满足 F浮=G。",
+    wrong: "密度变大不代表最终浮力无限变大；漂浮后会露出更多体积，V排 变小，直到 F浮=G。",
+    transfer: "凡是加盐、换液体、船装货后重新漂浮，都用“调整 V排 达到 F浮=G”解释。",
   },
   {
     id: "mock-5",
@@ -19,20 +59,33 @@ export const questions = [
     model: "float",
     prompt: "物体沉底后仍受到浮力，比较重力、浮力和支持力。",
     flow: ["预测沉底受力", "降低液体密度", "观察支持力出现", "高亮 G=F浮+F支", "完成原题", "模型迁移"],
+    stem: "物体沉在杯底且静止。关于它的受力，下列说法正确的是？",
+    options: [
+      { id: "A", text: "沉底后不受浮力", misconception: "把浮力误认为只属于漂浮物体" },
+      { id: "B", text: "沉底后 G=F浮+F支" },
+      { id: "C", text: "沉底后浮力等于重力", misconception: "把沉底和平衡漂浮混淆" },
+    ],
+    answer: "B",
+    correct: "对。沉底静止也要受力平衡，重力由浮力和杯底支持力共同承担。",
+    wrong: "只要物体排开液体，就有浮力；沉底只是浮力不足以单独平衡重力。",
+    transfer: "看到“沉底静止”，立刻画三力：G 向下，F浮 与 F支 向上。",
   },
   {
     id: "train-3",
     title: "专项训练第3题",
     model: "scale",
     prompt: "石块由弹簧测力计吊着逐渐浸入水中，观察浮力、拉力和电子秤示数的变化。",
-    flow: [
-      "预测电子秤变化",
-      "拖动石块入水",
-      "观察浮力与电子秤曲线",
-      "预测浸没后浮力是否继续变大",
-      "完成原题判断",
-      "错因反馈与模型归类",
+    flow: ["预测电子秤变化", "拖动石块入水", "观察浮力与电子秤曲线", "预测浸没后浮力是否继续变大", "完成原题判断", "错因反馈与模型归类"],
+    stem: "石块吊着逐渐浸入普通杯水中，杯子放在电子秤上。石块未碰杯底时，电子秤增加量等于什么？",
+    options: [
+      { id: "A", text: "石块重力", misconception: "以为电子秤直接称到石块" },
+      { id: "B", text: "石块受到的浮力" },
+      { id: "C", text: "弹簧测力计的拉力", misconception: "把绳子承担的力传给了电子秤" },
     ],
+    answer: "B",
+    correct: "对。水给石块向上的浮力，石块给水向下同样大小的反作用力，最终由杯子传给电子秤。",
+    wrong: "电子秤测桌面受到的总压力。吊着的石块重力主要由绳子承担，只有“水承担的那部分”传给电子秤。",
+    transfer: "电子秤题先追踪力流：谁给谁力，最后哪个力传到桌面。",
   },
   {
     id: "train-2",
@@ -40,6 +93,16 @@ export const questions = [
     model: "scale",
     prompt: "普通杯中吊物逐渐浸入，判断电子秤增加量为什么等于浮力。",
     flow: ["预测电子秤", "拖动入水", "观察反作用力", "追踪力流", "完成原题", "识别电子秤误区"],
+    stem: "吊物部分浸入水中后，弹簧测力计读数变小。变小的那部分力去了哪里？",
+    options: [
+      { id: "A", text: "被水承担，并通过水和杯子传给电子秤" },
+      { id: "B", text: "消失了", misconception: "没有建立力的传递守恒意识" },
+      { id: "C", text: "全部传给弹簧测力计", misconception: "方向和受力对象判断反了" },
+    ],
+    answer: "A",
+    correct: "对。拉力减少量就是浮力；水受到反作用力后把这部分压力传给杯底和电子秤。",
+    wrong: "力不会凭空消失。弹簧少承担的部分，正是水通过浮力承担的部分。",
+    transfer: "拉力变小、电子秤变大，本质是一份重力在绳子和水之间重新分配。",
   },
   {
     id: "train-6",
@@ -47,6 +110,16 @@ export const questions = [
     model: "scale",
     prompt: "装满的溢水杯中物体浸入，比较浮力、溢出水重和电子秤示数。",
     flow: ["切换溢水杯", "预测示数", "观察 G溢出=F浮", "比较普通杯", "完成原题", "归入溢水母题"],
+    stem: "装满的溢水杯放在电子秤上，物体吊着浸入且溢出水流走。电子秤示数如何变化？",
+    options: [
+      { id: "A", text: "增加一个浮力大小", misconception: "只看物体给水的反作用力，忘记溢出水被拿走" },
+      { id: "B", text: "保持不变" },
+      { id: "C", text: "增加物体重力", misconception: "仍在用直接称物体的模型" },
+    ],
+    answer: "B",
+    correct: "对。物体给水向下的作用力等于 F浮，同时溢出水重 G溢出=F浮，两者抵消。",
+    wrong: "溢水杯必须同时看“新增向下作用力”和“流走的水重”。只看一个就会错。",
+    transfer: "装满溢水杯的母题抓手：电子秤变化 = F浮 - G溢出。",
   },
   {
     id: "mock-6",
@@ -54,6 +127,16 @@ export const questions = [
     model: "scale",
     prompt: "石块完全浸没后继续下降，分析拉力、浮力和电子秤变化。",
     flow: ["预测浸没后变化", "拖动到全浸没", "观察曲线平台", "区分压强和浮力", "完成原题", "错因反馈"],
+    stem: "石块完全浸没后继续向下移动，未碰杯底。下列哪个量保持不变？",
+    options: [
+      { id: "A", text: "浮力和电子秤增加量" },
+      { id: "B", text: "液体压强", misconception: "忽略深度增加导致压强增大" },
+      { id: "C", text: "浮力继续增大", misconception: "混淆压强增大和浮力增大" },
+    ],
+    answer: "A",
+    correct: "对。完全浸没后 V排 不变，所以 F浮 不变；普通杯中电子秤增加量也随 F浮 保持不变。",
+    wrong: "浸没后深度会变，压强会变；但排开体积不变，浮力不变。",
+    transfer: "看到“完全浸没后继续变深”，先问 V排 变不变，而不是先看深度。",
   },
   {
     id: "train-5",
@@ -61,6 +144,16 @@ export const questions = [
     model: "level",
     prompt: "比较不同深度处的液体压强，判断 p 与 rho、h 的关系。",
     flow: ["预测压强大小", "拖动物体改变液面", "观察水深", "高亮 p=rho gh", "完成原题", "归入压强母题"],
+    stem: "同种液体中，底部压强由什么直接决定？",
+    options: [
+      { id: "A", text: "液体密度和深度" },
+      { id: "B", text: "容器中水的总质量", misconception: "把总重和某点压强混淆" },
+      { id: "C", text: "容器形状", misconception: "没有区分深度和形状" },
+    ],
+    answer: "A",
+    correct: "对。液体静压强 p=rho gh，只看液体密度和该点到液面的竖直深度。",
+    wrong: "同种液体同一深度，压强相同；容器宽窄和总水量不会直接进入 p=rho gh。",
+    transfer: "压强题先找 rho 和 h，其他信息多半是干扰项。",
   },
   {
     id: "train-8",
@@ -68,6 +161,16 @@ export const questions = [
     model: "level",
     prompt: "物体进入容器后液面上升，计算实际水深和底部压强变化。",
     flow: ["预测液面", "连续拖拽", "计算 Delta h=V排/S", "观察压强曲线", "完成原题", "迁移到柱体模型"],
+    stem: "物体逐渐浸入水中时，为什么物体下降距离不等于浸入深度？",
+    options: [
+      { id: "A", text: "因为液面也会上升，实际浸入深度要相对新液面判断" },
+      { id: "B", text: "因为浮力会让物体变轻", misconception: "把几何液面问题误解释成受力问题" },
+      { id: "C", text: "因为容器底部压强不变", misconception: "忽略液面上升会改变水深" },
+    ],
+    answer: "A",
+    correct: "对。排开的水抬高液面，Delta h=V排/S容器，浸入深度要以实时液面为参照。",
+    wrong: "这是几何补偿问题：物体挤开水，水面上升，参照面本身在动。",
+    transfer: "液面变化题同时追踪两个高度：物体位置和液面位置。",
   },
   {
     id: "mock-1",
@@ -75,6 +178,16 @@ export const questions = [
     model: "level",
     prompt: "容器形状不同但深度相同，判断底部液体压强是否相同。",
     flow: ["预测容器形状影响", "锁定深度", "比较压强", "排除总水量干扰", "完成原题", "错因纠偏"],
+    stem: "甲、乙容器形状不同，装同种液体且液面到底部深度相同。底部压强如何比较？",
+    options: [
+      { id: "A", text: "相等" },
+      { id: "B", text: "水多的容器压强大", misconception: "把液体总重当成压强" },
+      { id: "C", text: "底面积大的压强大", misconception: "把压力和压强混淆" },
+    ],
+    answer: "A",
+    correct: "对。同种液体、同一深度，p=rho gh 相同。",
+    wrong: "底部总压力可能不同，但压强只看单位面积上的效果，公式里没有总水量和容器形状。",
+    transfer: "比较液体压强，先锁定 rho 和 h；压力题才看受力面积。",
   },
   {
     id: "mock-8",
@@ -82,6 +195,16 @@ export const questions = [
     model: "level",
     prompt: "浸没后继续下降，压强增大而浮力不变，区分两个变量。",
     flow: ["预测浮力", "拖到全浸没", "继续变深", "观察压强上升", "完成原题", "识别误区"],
+    stem: "物体完全浸没后继续下降，底部压强和物体所受浮力分别如何变化？",
+    options: [
+      { id: "A", text: "压强增大，浮力不变" },
+      { id: "B", text: "压强和浮力都增大", misconception: "混淆压强和浮力" },
+      { id: "C", text: "压强不变，浮力不变", misconception: "忽略深度变化" },
+    ],
+    answer: "A",
+    correct: "对。深度 h 增大，所以压强增大；V排 不变，所以浮力不变。",
+    wrong: "压强看 h，浮力看 V排。完全浸没后两者会分开变化。",
+    transfer: "遇到“更深”两个字，分开问：h 是否变？V排 是否变？",
   },
   {
     id: "train-9",
@@ -89,6 +212,16 @@ export const questions = [
     model: "sensor",
     prompt: "水位上升时控制棒浸入体积改变，分析拉力传感器读数。",
     flow: ["调节水位", "观察浸入体积", "读取 F-h 图像", "判断水泵状态", "完成原题", "归入自动控制母题"],
+    stem: "水位上升、控制棒逐渐浸入水中时，力传感器读数如何变化？",
+    options: [
+      { id: "A", text: "先不变，再减小，完全浸没后又不变" },
+      { id: "B", text: "一直减小", misconception: "没有识别完全浸没后的平台段" },
+      { id: "C", text: "一直增大", misconception: "把浮力增大误当成拉力增大" },
+    ],
+    answer: "A",
+    correct: "对。未接触水时 F拉=G；部分浸没时 F浮 增大，F拉=G-F浮 减小；全浸没后 F浮 恒定。",
+    wrong: "传感器读的是拉力，不是浮力。浮力越大，绳子需要承担的拉力越小。",
+    transfer: "F-h 图像题先分三段：未接触、部分浸没、完全浸没。",
   },
   {
     id: "school-8",
@@ -96,6 +229,16 @@ export const questions = [
     model: "sensor",
     prompt: "力传感器读数随水位变化出现三段图像，解释每一段物理意义。",
     flow: ["悬停图像段", "识别未接触", "识别部分浸没", "识别全浸没", "完成原题", "图像迁移"],
+    stem: "F-h 图像中斜线下降段对应哪一物理过程？",
+    options: [
+      { id: "A", text: "物体部分浸没，V排 增大，浮力增大，拉力减小" },
+      { id: "B", text: "物体完全浸没，浮力继续增大", misconception: "把斜线段误读为全浸没" },
+      { id: "C", text: "物体未接触水，拉力变化", misconception: "未接触水时没有浮力变化" },
+    ],
+    answer: "A",
+    correct: "对。斜线段就是变量联动最强的阶段：水位变、V排 变、F浮 变、F拉 变。",
+    wrong: "图像斜率来自 V排 改变；未接触和全浸没都是平台段。",
+    transfer: "图像不是背形状，而是把每一段翻译成物理状态。",
   },
   {
     id: "mock-2",
@@ -103,6 +246,16 @@ export const questions = [
     model: "sensor",
     prompt: "自动注水装置中传感器读数达到阈值，判断控制系统动作。",
     flow: ["调节水位", "观察拉力阈值", "判断注水/停泵", "连接变量链", "完成原题", "错因反馈"],
+    stem: "自动控制题中，水位继续升高但控制棒已完全浸没，传感器读数会怎样？",
+    options: [
+      { id: "A", text: "保持不变" },
+      { id: "B", text: "继续减小", misconception: "没有识别 V排 已经不变" },
+      { id: "C", text: "继续增大", misconception: "把水位升高直接当成拉力增大" },
+    ],
+    answer: "A",
+    correct: "对。完全浸没后 V排 不变，F浮 不变，F拉=G-F浮 也不变。",
+    wrong: "自动控制题不要只看水位，要看水位是否还会改变浸入体积。",
+    transfer: "判断泵的动作，先读传感器变量，再回到水位-浮力-拉力链条。",
   },
   {
     id: "beijing-1",
@@ -110,5 +263,15 @@ export const questions = [
     model: "sensor",
     prompt: "根据 F-h 图像判断物体接触水面、完全浸没和继续加水后的状态。",
     flow: ["读图预测", "联动水位", "定位当前点", "解释三段平台", "完成真题", "母题迁移"],
+    stem: "F-h 图像中后半段再次变为水平线，说明了什么？",
+    options: [
+      { id: "A", text: "物体已经完全浸没，浮力和拉力都不再变化" },
+      { id: "B", text: "水位停止上升", misconception: "把图像平台误认为水位不变" },
+      { id: "C", text: "物体不再受浮力", misconception: "完全浸没后浮力仍然存在" },
+    ],
+    answer: "A",
+    correct: "对。后平台段对应完全浸没，水位可以继续升高，但 V排 不再增加。",
+    wrong: "平台表示传感器读数不变，不一定表示水位不变。",
+    transfer: "读图要问横轴是什么、纵轴是什么，平台只说明纵轴量不变。",
   },
 ];
