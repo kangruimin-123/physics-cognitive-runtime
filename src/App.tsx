@@ -188,7 +188,7 @@ function App() {
           </div>
           <div className="score-card">
             <span>目标</span>
-            <strong>80-85 -> 95+</strong>
+            <strong>80-85 → 95+</strong>
             <p>C 篇科普说明文 + D 篇议论文，是阅读拉分的主战场。</p>
           </div>
         </section>
@@ -265,7 +265,7 @@ function App() {
             {synonymPairs.map(([from, to]) => (
               <div className="pair" key={from}>
                 <span>{from}</span>
-                <b>-></b>
+                <b>{"→"}</b>
                 <span>{to}</span>
               </div>
             ))}
@@ -292,7 +292,7 @@ function App() {
               <li>看标题</li>
               <li>看第一段，找主题</li>
               <li>每段一句话总结</li>
-              <li>画逻辑图：主题 -> 案例 -> 解释 -> 总结</li>
+              <li>画逻辑图：主题 → 案例 → 解释 → 总结</li>
             </ol>
           </article>
           <article>
