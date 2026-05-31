@@ -121,13 +121,19 @@ h1 {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .mode-tabs button {
   padding: 0 18px;
   font-weight: 800;
 }
 
 .mode-tabs button.active,
-.primary {
+.primary,
+.sound-toggle.active {
   border-color: #1f4e79 !important;
   background: #1f4e79 !important;
   color: #ffffff !important;
@@ -216,8 +222,25 @@ select {
 .card-top {
   display: flex;
   justify-content: space-between;
+  gap: 14px;
+  align-items: center;
   color: #607083;
   font-weight: 800;
+}
+
+.card-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.speak-button {
+  min-height: 40px !important;
+  padding: 0 14px;
+  border-color: #1f4e79 !important;
+  background: #eef7ff !important;
+  color: #1f4e79 !important;
+  font-weight: 900;
 }
 
 .prompt {
@@ -239,6 +262,13 @@ select {
   margin: 16px 0 0;
   color: #758498;
   font-size: 20px;
+}
+
+.speech-warning {
+  margin: 10px 0 0;
+  color: #9f1239;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .meaning {
