@@ -28,13 +28,31 @@ function App() {
   const [quizResult, setQuizResult] = useState<"right" | "wrong" | "">("");
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceName, setVoiceName] = useState("");
+  const [speechSpeed, setSpeechSpeed] = useState<"slow" | "normal">("slow");
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(progress));
   }, [progress]);
 
   useEffect(() => {
-    setSpeechSupported("speechSynthesis" in window && "SpeechSynthesisUtterance" in window);
+    const supported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+    setSpeechSupported(supported);
+    if (!supported) return;
+
+    const loadVoices = () => {
+      const englishVoices = window.speechSynthesis
+        .getVoices()
+        .filter((voice) => voice.lang.toLowerCase().startsWith("en"))
+        .sort(scoreVoice);
+      setVoices(englishVoices);
+      setVoiceName((current) => current || englishVoices[0]?.name || "");
+    };
+
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
   }, []);
 
   const categories = useMemo(() => ["全部", ...Array.from(new Set(vocabItems.map((item) => item.category)))], []);
@@ -62,8 +80,14 @@ function App() {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "en-US";
-    utterance.rate = text.includes(" ") ? 0.78 : 0.86;
+    const selectedVoice = voices.find((voice) => voice.name === voiceName) || voices[0];
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice.lang;
+    }
+    utterance.rate = speechSpeed === "slow" ? (text.includes(" ") ? 0.64 : 0.72) : text.includes(" ") ? 0.82 : 0.92;
     utterance.pitch = 1;
+    utterance.volume = 1;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -141,6 +165,28 @@ function App() {
         <button className={autoSpeak ? "sound-toggle active" : "sound-toggle"} onClick={() => setAutoSpeak((value) => !value)}>
           {autoSpeak ? "自动读音开" : "自动读音关"}
         </button>
+        <label>
+          语音
+          <select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} disabled={!voices.length}>
+            {voices.length ? (
+              voices.map((voice) => (
+                <option key={voice.name} value={voice.name}>
+                  {cleanVoiceName(voice)}
+                </option>
+              ))
+            ) : (
+              <option>浏览器默认</option>
+            )}
+          </select>
+        </label>
+        <div className="speed-tabs" aria-label="读音速度">
+          <button className={speechSpeed === "slow" ? "active" : ""} onClick={() => setSpeechSpeed("slow")}>
+            慢速跟读
+          </button>
+          <button className={speechSpeed === "normal" ? "active" : ""} onClick={() => setSpeechSpeed("normal")}>
+            标准速度
+          </button>
+        </div>
       </section>
 
       <section className="workspace">
@@ -312,6 +358,29 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function scoreVoice(a: SpeechSynthesisVoice, b: SpeechSynthesisVoice) {
+  return voiceScore(b) - voiceScore(a);
+}
+
+function voiceScore(voice: SpeechSynthesisVoice) {
+  const name = voice.name.toLowerCase();
+  const lang = voice.lang.toLowerCase();
+  let score = 0;
+  if (lang === "en-us") score += 20;
+  if (lang === "en-gb") score += 16;
+  if (name.includes("google")) score += 18;
+  if (name.includes("microsoft")) score += 18;
+  if (["aria", "jenny", "guy", "samantha", "daniel", "alex", "karen", "moira", "tessa"].some((item) => name.includes(item))) score += 14;
+  if (name.includes("premium") || name.includes("enhanced") || name.includes("natural")) score += 10;
+  if (name.includes("compact")) score -= 8;
+  if (voice.localService) score += 2;
+  return score;
+}
+
+function cleanVoiceName(voice: SpeechSynthesisVoice) {
+  return `${voice.name.replace(/^Microsoft\\s+/i, "").replace(/^Google\\s+/i, "")} · ${voice.lang}`;
 }
 
 export default App;
