@@ -1,339 +1,278 @@
-const coreWords = [
-  {
-    title: "科学研究",
-    words: [
-      "research",
-      "study",
-      "scientist",
-      "discover",
-      "evidence",
-      "data",
-      "theory",
-      "result",
-      "experiment",
-      "observe",
-      "analyze",
-      "factor",
-      "influence",
-      "affect",
-      "process",
-      "method",
-      "approach",
-      "solution",
-      "challenge",
-      "achievement",
-    ],
-  },
-  {
-    title: "科技 AI",
-    words: [
-      "technology",
-      "artificial",
-      "intelligence",
-      "digital",
-      "device",
-      "assistant",
-      "robot",
-      "healthcare",
-      "system",
-      "platform",
-      "advanced",
-      "automatic",
-      "recognition",
-      "simulation",
-      "virtual",
-      "efficient",
-      "innovation",
-      "smart",
-      "visual",
-      "analysis",
-    ],
-  },
-  {
-    title: "心理成长",
-    words: [
-      "happiness",
-      "emotion",
-      "confidence",
-      "stress",
-      "anxiety",
-      "wellbeing",
-      "motivation",
-      "satisfaction",
-      "attitude",
-      "behavior",
-      "awareness",
-      "mental",
-      "positive",
-      "negative",
-      "growth",
-      "courage",
-      "patience",
-      "resilience",
-      "mindset",
-      "strength",
-    ],
-  },
-  {
-    title: "教育成长",
-    words: [
-      "potential",
-      "ability",
-      "skill",
-      "improve",
-      "progress",
-      "develop",
-      "encourage",
-      "performance",
-      "success",
-      "failure",
-      "effort",
-      "practice",
-      "mistake",
-      "experience",
-      "opportunity",
-      "goal",
-      "focus",
-      "accept",
-      "manage",
-      "control",
-    ],
-  },
-  {
-    title: "环保生态",
-    words: [
-      "environment",
-      "climate",
-      "pollution",
-      "energy",
-      "renewable",
-      "wildlife",
-      "habitat",
-      "ecosystem",
-      "resource",
-      "protect",
-      "reduce",
-      "recycle",
-      "sustainable",
-      "forest",
-      "nature",
-      "species",
-      "carbon",
-      "biodiversity",
-      "conservation",
-      "greenhouse",
-    ],
-  },
-];
+import { useEffect, useMemo, useState } from "react";
+import { vocabItems, type VocabItem } from "./vocab";
 
-const phrases = [
-  ["因果", "lead to", "result in", "contribute to", "because of", "as a result", "due to", "thanks to"],
-  ["转折", "however", "although", "though", "while", "yet", "nevertheless", "even though"],
-  ["举例", "for example", "such as", "for instance", "including"],
-  ["递进", "moreover", "furthermore", "besides", "in addition", "what's more"],
-  ["对比", "compared with", "rather than", "instead of", "unlike", "in contrast"],
-  ["万能短语", "focus on", "be likely to", "deal with", "benefit from", "depend on", "be aware of"],
-];
+type Mode = "flashcard" | "quiz" | "wrong";
+type ProgressMap = Record<string, "known" | "wrong">;
 
-const specialMeanings = [
-  ["address", "地址", "处理；解决", "address a problem"],
-  ["challenge", "挑战", "难题；困难", "face a challenge"],
-  ["support", "支持", "帮助；支撑；证据", "support an idea"],
-  ["develop", "发展", "培养；形成；开发", "develop a skill"],
-  ["concern", "关心", "担忧；顾虑", "a growing concern"],
-  ["issue", "发行", "问题；议题", "social issues"],
-  ["present", "礼物", "呈现；展示", "present evidence"],
-  ["matter", "事情", "重要；有关系", "what matters is"],
-];
+const storageKey = "beijing-reading-vocab-progress-v1";
 
-const synonymPairs = [
-  ["help", "support"],
-  ["important", "significant"],
-  ["change", "transform"],
-  ["problem", "challenge"],
-  ["improve", "enhance"],
-  ["show", "demonstrate"],
-  ["use", "apply"],
-  ["learn", "acquire"],
-];
+function loadProgress(): ProgressMap {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
 
-const sentenceTemplates = [
-  ["定语从句", "A college introduced a robot which provides students with information.", "A college introduced a robot."],
-  ["过去分词", "ElliQ, developed by Intuition Robotics, acts as a friend.", "ElliQ acts as a friend."],
-  ["宾语从句", "Research shows that happier people are more likely to succeed.", "Research shows + that..."],
-  ["非谓语", "Using trackers, researchers studied whales.", "Researchers studied whales."],
-  ["被动语态", "Smart technologies are used in schools.", "Technologies are used."],
-  ["长主语", "People who scored higher on the analytical tests were less likely to mistake fake news.", "People were less likely."],
-];
+function shuffle<T>(items: T[]) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
 
 function App() {
+  const [mode, setMode] = useState<Mode>("flashcard");
+  const [category, setCategory] = useState("全部");
+  const [index, setIndex] = useState(0);
+  const [showMeaning, setShowMeaning] = useState(false);
+  const [progress, setProgress] = useState<ProgressMap>(() => loadProgress());
+  const [quizChoice, setQuizChoice] = useState("");
+  const [quizResult, setQuizResult] = useState<"right" | "wrong" | "">("");
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(progress));
+  }, [progress]);
+
+  const categories = useMemo(() => ["全部", ...Array.from(new Set(vocabItems.map((item) => item.category)))], []);
+
+  const filtered = useMemo(() => {
+    const source = category === "全部" ? vocabItems : vocabItems.filter((item) => item.category === category);
+    if (mode === "wrong") return source.filter((item) => progress[item.id] === "wrong");
+    return source;
+  }, [category, mode, progress]);
+
+  const current = filtered[index % Math.max(filtered.length, 1)];
+  const knownCount = vocabItems.filter((item) => progress[item.id] === "known").length;
+  const wrongCount = vocabItems.filter((item) => progress[item.id] === "wrong").length;
+  const doneCount = knownCount + wrongCount;
+  const percent = Math.round((doneCount / vocabItems.length) * 100);
+
+  const options = useMemo(() => {
+    if (!current) return [];
+    const distractors = shuffle(vocabItems.filter((item) => item.id !== current.id)).slice(0, 3);
+    return shuffle([current, ...distractors]);
+  }, [current]);
+
+  const nextCard = () => {
+    setShowMeaning(false);
+    setQuizChoice("");
+    setQuizResult("");
+    setIndex((value) => (value + 1) % Math.max(filtered.length, 1));
+  };
+
+  const mark = (value: "known" | "wrong") => {
+    if (!current) return;
+    setProgress((items) => ({ ...items, [current.id]: value }));
+    nextCard();
+  };
+
+  const resetProgress = () => {
+    setProgress({});
+    setIndex(0);
+    setShowMeaning(false);
+    setQuizChoice("");
+    setQuizResult("");
+  };
+
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">北京中考英语</div>
-        <nav>
-          {["主题地图", "核心词", "高频短语", "熟词僻义", "同义替换", "长难句", "C/D步骤", "20天计划"].map((item) => (
-            <a key={item} href={`#${item}`}>
-              {item}
-            </a>
-          ))}
-        </nav>
-      </aside>
+    <main className="app">
+      <header className="hero">
+        <div>
+          <h1>北京中考 C/D 篇背单词 App</h1>
+          <p>按真题主题背核心词，闪卡判断会不会，错词自动进入复习池，适合每天 10-15 分钟冲刺。</p>
+        </div>
+        <div className="stats">
+          <Stat label="词条" value={vocabItems.length} />
+          <Stat label="已处理" value={`${percent}%`} />
+          <Stat label="错词" value={wrongCount} />
+        </div>
+      </header>
 
-      <div className="content">
-        <section className="hero">
-          <div>
-            <h1>阅读 C/D 篇终极冲刺手册</h1>
-            <p>2024-2026 北京各区一模二模真题版：核心词、长难句、作者观点、命题人思维，一屏一屏背。</p>
-          </div>
-          <div className="score-card">
-            <span>目标</span>
-            <strong>80-85 → 95+</strong>
-            <p>C 篇科普说明文 + D 篇议论文，是阅读拉分的主战场。</p>
-          </div>
-        </section>
-
-        <section id="主题地图" className="section">
-          <h2>北京中考阅读主题地图</h2>
-          <div className="tier-grid">
-            <TopicTier title="第一梯队（每年必出）" items={["人工智能", "科技创新", "心理健康", "成长教育", "环境保护", "社会现象"]} />
-            <TopicTier title="第二梯队" items={["医疗健康", "机器人", "幸福感研究", "社交媒体", "学习能力", "校园科技"]} />
-            <TopicTier title="第三梯队" items={["建筑设计", "城市规划", "生物保护", "海洋动物", "能源发展", "历史文化"]} />
-          </div>
-        </section>
-
-        <section id="核心词" className="section">
-          <div className="section-heading">
-            <h2>必背 100 词</h2>
-            <p>不要按 A-Z 背，按主题背。做 C/D 篇时这些词会反复出现。</p>
-          </div>
-          <div className="word-grid">
-            {coreWords.map((group) => (
-              <article className="word-card" key={group.title}>
-                <h3>{group.title}</h3>
-                <div className="chips">
-                  {group.words.map((word) => (
-                    <span key={word}>{word}</span>
-                  ))}
-                </div>
-              </article>
+      <section className="toolbar" aria-label="学习控制">
+        <div className="mode-tabs">
+          <button className={mode === "flashcard" ? "active" : ""} onClick={() => setMode("flashcard")}>
+            闪卡
+          </button>
+          <button className={mode === "quiz" ? "active" : ""} onClick={() => setMode("quiz")}>
+            测验
+          </button>
+          <button className={mode === "wrong" ? "active" : ""} onClick={() => setMode("wrong")}>
+            错词本
+          </button>
+        </div>
+        <label>
+          主题
+          <select
+            value={category}
+            onChange={(event) => {
+              setCategory(event.target.value);
+              setIndex(0);
+              setShowMeaning(false);
+            }}
+          >
+            {categories.map((item) => (
+              <option key={item}>{item}</option>
             ))}
-          </div>
-        </section>
+          </select>
+        </label>
+        <button className="ghost" onClick={resetProgress}>
+          清空进度
+        </button>
+      </section>
 
-        <section id="高频短语" className="section">
-          <h2>北京中考最爱考的 50 个短语</h2>
-          <div className="phrase-list">
-            {phrases.map(([title, ...items]) => (
-              <div className="phrase-row" key={title}>
-                <strong>{title}</strong>
-                <p>{items.join(" / ")}</p>
-              </div>
-            ))}
+      <section className="workspace">
+        <aside className="progress-panel">
+          <h2>今日目标</h2>
+          <div className="progress-bar">
+            <span style={{ width: `${percent}%` }} />
           </div>
-        </section>
-
-        <section id="熟词僻义" className="section">
-          <h2>命题人最爱考的熟词僻义</h2>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>词</th>
-                  <th>课本意思</th>
-                  <th>阅读意思</th>
-                  <th>真题场景</th>
-                </tr>
-              </thead>
-              <tbody>
-                {specialMeanings.map(([word, textbook, reading, scene]) => (
-                  <tr key={word}>
-                    <td>{word}</td>
-                    <td>{textbook}</td>
-                    <td>{reading}</td>
-                    <td>{scene}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p>
+            已会 {knownCount} 个，待复习 {wrongCount} 个。建议先把错词清零，再进入下一主题。
+          </p>
+          <div className="mini-list">
+            {categories.slice(1, 8).map((item) => {
+              const total = vocabItems.filter((word) => word.category === item).length;
+              const done = vocabItems.filter((word) => word.category === item && progress[word.id]).length;
+              return (
+                <button key={item} onClick={() => setCategory(item)}>
+                  <span>{item}</span>
+                  <b>
+                    {done}/{total}
+                  </b>
+                </button>
+              );
+            })}
           </div>
-        </section>
+        </aside>
 
-        <section id="同义替换" className="section">
-          <h2>高频同义替换</h2>
-          <div className="pair-grid">
-            {synonymPairs.map(([from, to]) => (
-              <div className="pair" key={from}>
-                <span>{from}</span>
-                <b>{"→"}</b>
-                <span>{to}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="长难句" className="section">
-          <h2>长难句拆解模板</h2>
-          <div className="sentence-stack">
-            {sentenceTemplates.map(([title, original, core]) => (
-              <article className="sentence-card" key={title}>
-                <h3>{title}</h3>
-                <p className="original">{original}</p>
-                <p className="core">主干：{core}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="C/D步骤" className="section split">
-          <article>
-            <h2>C 篇阅读万能步骤</h2>
-            <ol>
-              <li>看标题</li>
-              <li>看第一段，找主题</li>
-              <li>每段一句话总结</li>
-              <li>画逻辑图：主题 → 案例 → 解释 → 总结</li>
-            </ol>
-          </article>
-          <article>
-            <h2>D 篇阅读万能步骤</h2>
-            <ol>
-              <li>第一段：作者在讨论什么问题？</li>
-              <li>全文：作者观点是什么？</li>
-              <li>找理由 1 / 2 / 3</li>
-              <li>最后看结尾：建议是什么？</li>
-            </ol>
-          </article>
-        </section>
-
-        <section id="20天计划" className="section plan">
-          <h2>孩子每天背什么</h2>
-          <div className="plan-grid">
-            <div>
-              <strong>Day 1-10</strong>
-              <p>每天 10 个核心词 + 5 个短语 + 2 个长句。</p>
-            </div>
-            <div>
-              <strong>Day 11-20</strong>
-              <p>每天 C 篇一篇 + D 篇一篇，必须复盘主题、作者观点、段落功能和错因。</p>
-            </div>
-          </div>
-        </section>
-      </div>
+        <StudyCard
+          mode={mode}
+          item={current}
+          total={filtered.length}
+          currentIndex={filtered.length ? (index % filtered.length) + 1 : 0}
+          showMeaning={showMeaning}
+          options={options}
+          quizChoice={quizChoice}
+          quizResult={quizResult}
+          onFlip={() => setShowMeaning((value) => !value)}
+          onKnown={() => mark("known")}
+          onWrong={() => mark("wrong")}
+          onNext={nextCard}
+          onQuiz={(option) => {
+            if (!current) return;
+            setQuizChoice(option.id);
+            const isRight = option.id === current.id;
+            setQuizResult(isRight ? "right" : "wrong");
+            setProgress((items) => ({ ...items, [current.id]: isRight ? "known" : "wrong" }));
+          }}
+        />
+      </section>
     </main>
   );
 }
 
-function TopicTier({ title, items }: { title: string; items: string[] }) {
+function StudyCard({
+  mode,
+  item,
+  total,
+  currentIndex,
+  showMeaning,
+  options,
+  quizChoice,
+  quizResult,
+  onFlip,
+  onKnown,
+  onWrong,
+  onNext,
+  onQuiz,
+}: {
+  mode: Mode;
+  item?: VocabItem;
+  total: number;
+  currentIndex: number;
+  showMeaning: boolean;
+  options: VocabItem[];
+  quizChoice: string;
+  quizResult: "right" | "wrong" | "";
+  onFlip: () => void;
+  onKnown: () => void;
+  onWrong: () => void;
+  onNext: () => void;
+  onQuiz: (item: VocabItem) => void;
+}) {
+  if (!item) {
+    return (
+      <section className="card empty">
+        <h2>错词本已清空</h2>
+        <p>很好，回到闪卡继续新主题。</p>
+      </section>
+    );
+  }
+
   return (
-    <article className="tier">
-      <h3>{title}</h3>
-      <div className="chips">
-        {items.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
+    <section className="card">
+      <div className="card-top">
+        <span>{item.type}</span>
+        <b>
+          {currentIndex}/{total}
+        </b>
       </div>
-    </article>
+
+      {mode === "quiz" ? (
+        <>
+          <p className="prompt">请选择这个英文的中文意思</p>
+          <h2>{item.word}</h2>
+          <p className="phonetic">{item.phonetic || " "}</p>
+          <div className="options">
+            {options.map((option) => (
+              <button
+                key={option.id}
+                className={[
+                  quizChoice === option.id ? "selected" : "",
+                  quizChoice && option.id === item.id ? "correct" : "",
+                  quizChoice === option.id && option.id !== item.id ? "incorrect" : "",
+                ].join(" ")}
+                onClick={() => onQuiz(option)}
+                disabled={Boolean(quizChoice)}
+              >
+                {option.meaning}
+              </button>
+            ))}
+          </div>
+          {quizResult && <p className={`result ${quizResult}`}>{quizResult === "right" ? "答对了，记为已会。" : `答错了，正确答案：${item.meaning}`}</p>}
+          <button className="primary" onClick={onNext}>
+            下一题
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="prompt">{item.category}</p>
+          <h2>{item.word}</h2>
+          <p className="phonetic">{item.phonetic || " "}</p>
+          <button className="meaning" onClick={onFlip}>
+            {showMeaning ? item.meaning : "点一下显示中文"}
+          </button>
+          <div className="actions">
+            <button className="danger" onClick={onWrong}>
+              不认识
+            </button>
+            <button className="primary" onClick={onKnown}>
+              已会
+            </button>
+          </div>
+          <button className="ghost wide" onClick={onNext}>
+            跳过
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
