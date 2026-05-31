@@ -104,7 +104,8 @@ h1 {
   padding: 16px;
 }
 
-.mode-tabs {
+.mode-tabs,
+.speed-tabs {
   display: flex;
   gap: 8px;
 }
@@ -126,12 +127,14 @@ button:disabled {
   opacity: 0.45;
 }
 
-.mode-tabs button {
+.mode-tabs button,
+.speed-tabs button {
   padding: 0 18px;
   font-weight: 800;
 }
 
 .mode-tabs button.active,
+.speed-tabs button.active,
 .primary,
 .sound-toggle.active {
   border-color: #1f4e79 !important;
@@ -386,13 +389,15 @@ select {
   }
 
   .mode-tabs,
+  .speed-tabs,
   .toolbar label,
   .toolbar select,
   .toolbar .ghost {
     width: 100%;
   }
 
-  .mode-tabs button {
+  .mode-tabs button,
+  .speed-tabs button {
     flex: 1;
   }
 }
