@@ -26,10 +26,16 @@ function App() {
   const [progress, setProgress] = useState<ProgressMap>(() => loadProgress());
   const [quizChoice, setQuizChoice] = useState("");
   const [quizResult, setQuizResult] = useState<"right" | "wrong" | "">("");
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [speechSupported, setSpeechSupported] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(progress));
   }, [progress]);
+
+  useEffect(() => {
+    setSpeechSupported("speechSynthesis" in window && "SpeechSynthesisUtterance" in window);
+  }, []);
 
   const categories = useMemo(() => ["全部", ...Array.from(new Set(vocabItems.map((item) => item.category)))], []);
 
@@ -50,6 +56,22 @@ function App() {
     const distractors = shuffle(vocabItems.filter((item) => item.id !== current.id)).slice(0, 3);
     return shuffle([current, ...distractors]);
   }, [current]);
+
+  const speak = (text?: string) => {
+    if (!text || !("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = text.includes(" ") ? 0.78 : 0.86;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  useEffect(() => {
+    if (autoSpeak && current) {
+      speak(current.word);
+    }
+  }, [autoSpeak, current?.id]);
 
   const nextCard = () => {
     setShowMeaning(false);
@@ -116,6 +138,9 @@ function App() {
         <button className="ghost" onClick={resetProgress}>
           清空进度
         </button>
+        <button className={autoSpeak ? "sound-toggle active" : "sound-toggle"} onClick={() => setAutoSpeak((value) => !value)}>
+          {autoSpeak ? "自动读音开" : "自动读音关"}
+        </button>
       </section>
 
       <section className="workspace">
@@ -152,7 +177,9 @@ function App() {
           options={options}
           quizChoice={quizChoice}
           quizResult={quizResult}
+          speechSupported={speechSupported}
           onFlip={() => setShowMeaning((value) => !value)}
+          onSpeak={() => speak(current?.word)}
           onKnown={() => mark("known")}
           onWrong={() => mark("wrong")}
           onNext={nextCard}
@@ -178,7 +205,9 @@ function StudyCard({
   options,
   quizChoice,
   quizResult,
+  speechSupported,
   onFlip,
+  onSpeak,
   onKnown,
   onWrong,
   onNext,
@@ -192,7 +221,9 @@ function StudyCard({
   options: VocabItem[];
   quizChoice: string;
   quizResult: "right" | "wrong" | "";
+  speechSupported: boolean;
   onFlip: () => void;
+  onSpeak: () => void;
   onKnown: () => void;
   onWrong: () => void;
   onNext: () => void;
@@ -211,9 +242,14 @@ function StudyCard({
     <section className="card">
       <div className="card-top">
         <span>{item.type}</span>
-        <b>
-          {currentIndex}/{total}
-        </b>
+        <div className="card-tools">
+          <button className="speak-button" onClick={onSpeak} disabled={!speechSupported} aria-label={`播放 ${item.word} 的读音`}>
+            ▶ 读音
+          </button>
+          <b>
+            {currentIndex}/{total}
+          </b>
+        </div>
       </div>
 
       {mode === "quiz" ? (
@@ -221,6 +257,7 @@ function StudyCard({
           <p className="prompt">请选择这个英文的中文意思</p>
           <h2>{item.word}</h2>
           <p className="phonetic">{item.phonetic || " "}</p>
+          {!speechSupported && <p className="speech-warning">当前浏览器不支持自动发音，请换 Chrome、Safari 或 Edge 打开。</p>}
           <div className="options">
             {options.map((option) => (
               <button
@@ -247,6 +284,7 @@ function StudyCard({
           <p className="prompt">{item.category}</p>
           <h2>{item.word}</h2>
           <p className="phonetic">{item.phonetic || " "}</p>
+          {!speechSupported && <p className="speech-warning">当前浏览器不支持自动发音，请换 Chrome、Safari 或 Edge 打开。</p>}
           <button className="meaning" onClick={onFlip}>
             {showMeaning ? item.meaning : "点一下显示中文"}
           </button>
