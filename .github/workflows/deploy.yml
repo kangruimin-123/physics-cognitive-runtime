@@ -29,9 +29,15 @@ jobs:
 
       - run: npm run build
 
-      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+      - name: Package GitHub Pages artifact
+        run: tar --dereference --hard-dereference --directory dist -cvf artifact.tar .
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          path: dist
+          name: github-pages
+          path: artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     needs: build
