@@ -1,386 +1,196 @@
-import { useEffect, useMemo, useState } from "react";
-import { vocabItems, type VocabItem } from "./vocab";
+const sheets = [
+  ["Sheet1", "核心词汇499", "ID、单词/短语、音标、词性、中文、主题、等级、勾选、备注"],
+  ["Sheet2", "真题例句精讲", "词条匹配 C/D 篇真题例句，含中文翻译、来源试卷、段落"],
+  ["Sheet3", "长难句拆解", "长难句、主干、修饰成分、从句类型、结构说明、学生提示"],
+  ["Sheet4", "文章结构模板", "C篇科普、AI科技、社会问题；D篇观点论证、概念、利弊分析"],
+  ["Sheet5", "逐篇文章结构拆解", "每篇 C/D 篇的主题、类型、段落功能、结构图、作者观点"],
+  ["Sheet6", "命题人考法", "细节、主旨、标题、推理、作者观点、词义猜测、指代等题型"],
+  ["Sheet7", "阅读题干词库", "英文题干、中文、题型、关键词、答题动作"],
+  ["Sheet8", "熟词僻义", "address、challenge、support、develop、concern 等阅读义"],
+  ["Sheet9", "高频短语与逻辑词", "因果、转折、递进、举例、对比、观点表达"],
+  ["Sheet10", "单词-句子-文章功能卡片", "单词到例句、句子主干、文章作用、命题点的完整链条"],
+  ["Sheet11", "每日复习计划", "Day1-Day30，单词、短语、题干、长难句、结构任务"],
+  ["Sheet12", "错词本", "日期、单词、错误原因、来源文章、三轮复习、是否掌握"],
+  ["Sheet13", "英译汉测试", "英文、中文答案、学生填写、是否正确"],
+  ["Sheet14", "汉译英测试", "中文、英文答案、学生填写、是否正确"],
+  ["Sheet15", "欧路词典导入数据", "生成 core/theme/question/polysemy/phrases 五类 TXT"],
+];
 
-type Mode = "flashcard" | "quiz" | "wrong";
-type ProgressMap = Record<string, "known" | "wrong">;
+const structures = [
+  ["C篇 科普说明文", "提出现象 → 解释原理 → 实验/研究 → 现实应用 → 总结意义", "海洋动物节能、短视频与大脑、倒走运动"],
+  ["C篇 AI科技案例文", "提出科技 → 案例1 → 案例2 → 案例3 → 总结影响", "智慧校园、医疗机器人、智能图书馆、AI工具"],
+  ["C篇 社会问题说明文", "提出问题 → 分析原因 → 说明危害 → 提出办法 → 总结提醒", "假新闻、社交媒体、短视频、网络信息"],
+  ["D篇 观点论证型", "提出问题 → 作者观点 → 理由1 → 理由2 → 理由3 → 结论", "幸福与成功、早餐是否重要、心理韧性"],
+  ["D篇 提出概念型", "提出概念 → 解释概念 → 研究证明 → 具体方法 → 总结升华", "PTG、Mental Toughness、Hidden Potential"],
+  ["D篇 利弊分析型", "提出问题 → 支持观点 → 反对观点 → 专家意见 → 作者结论", "Skipping Breakfast、AI工具、社交媒体使用"],
+];
 
-const storageKey = "beijing-reading-vocab-progress-v1";
+const outputs = [
+  "beijing_reading_cd_master.xlsx",
+  "beijing_reading_cd_master.pdf",
+  "eudic_import/core_words.txt",
+  "eudic_import/theme_words.txt",
+  "eudic_import/question_stems.txt",
+  "eudic_import/polysemy_words.txt",
+  "eudic_import/phrases.txt",
+  "README.md",
+];
 
-function loadProgress(): ProgressMap {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function shuffle<T>(items: T[]) {
-  return [...items].sort(() => Math.random() - 0.5);
-}
+const acceptance = [
+  "生成 xlsx 和 pdf",
+  "包含 499 词且不得删词",
+  "每词有中文，核心词有音标",
+  "有真题例句和中文翻译",
+  "有长难句拆解",
+  "有 C/D 篇文章结构模板",
+  "有阅读题干词库",
+  "有欧路导入 TXT",
+  "A4 横向、黑白打印友好",
+  "适合初三学生直接背诵",
+];
 
 function App() {
-  const [mode, setMode] = useState<Mode>("flashcard");
-  const [category, setCategory] = useState("全部");
-  const [index, setIndex] = useState(0);
-  const [showMeaning, setShowMeaning] = useState(false);
-  const [progress, setProgress] = useState<ProgressMap>(() => loadProgress());
-  const [quizChoice, setQuizChoice] = useState("");
-  const [quizResult, setQuizResult] = useState<"right" | "wrong" | "">("");
-  const [autoSpeak, setAutoSpeak] = useState(true);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [voiceName, setVoiceName] = useState("");
-  const [speechSpeed, setSpeechSpeed] = useState<"slow" | "normal">("slow");
-
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(progress));
-  }, [progress]);
-
-  useEffect(() => {
-    const supported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
-    setSpeechSupported(supported);
-    if (!supported) return;
-
-    const loadVoices = () => {
-      const englishVoices = window.speechSynthesis
-        .getVoices()
-        .filter((voice) => voice.lang.toLowerCase().startsWith("en"))
-        .sort(scoreVoice);
-      setVoices(englishVoices);
-      setVoiceName((current) => current || englishVoices[0]?.name || "");
-    };
-
-    loadVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
-  }, []);
-
-  const categories = useMemo(() => ["全部", ...Array.from(new Set(vocabItems.map((item) => item.category)))], []);
-
-  const filtered = useMemo(() => {
-    const source = category === "全部" ? vocabItems : vocabItems.filter((item) => item.category === category);
-    if (mode === "wrong") return source.filter((item) => progress[item.id] === "wrong");
-    return source;
-  }, [category, mode, progress]);
-
-  const current = filtered[index % Math.max(filtered.length, 1)];
-  const knownCount = vocabItems.filter((item) => progress[item.id] === "known").length;
-  const wrongCount = vocabItems.filter((item) => progress[item.id] === "wrong").length;
-  const doneCount = knownCount + wrongCount;
-  const percent = Math.round((doneCount / vocabItems.length) * 100);
-
-  const options = useMemo(() => {
-    if (!current) return [];
-    const distractors = shuffle(vocabItems.filter((item) => item.id !== current.id)).slice(0, 3);
-    return shuffle([current, ...distractors]);
-  }, [current]);
-
-  const speak = (text?: string) => {
-    if (!text || !("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    const selectedVoice = voices.find((voice) => voice.name === voiceName) || voices[0];
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-      utterance.lang = selectedVoice.lang;
-    }
-    utterance.rate = speechSpeed === "slow" ? (text.includes(" ") ? 0.64 : 0.72) : text.includes(" ") ? 0.82 : 0.92;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  useEffect(() => {
-    if (autoSpeak && current) {
-      speak(current.word);
-    }
-  }, [autoSpeak, current?.id]);
-
-  const nextCard = () => {
-    setShowMeaning(false);
-    setQuizChoice("");
-    setQuizResult("");
-    setIndex((value) => (value + 1) % Math.max(filtered.length, 1));
-  };
-
-  const mark = (value: "known" | "wrong") => {
-    if (!current) return;
-    setProgress((items) => ({ ...items, [current.id]: value }));
-    nextCard();
-  };
-
-  const resetProgress = () => {
-    setProgress({});
-    setIndex(0);
-    setShowMeaning(false);
-    setQuizChoice("");
-    setQuizResult("");
-  };
-
   return (
-    <main className="app">
-      <header className="hero">
+    <main className="page">
+      <section className="hero">
         <div>
-          <h1>北京中考 C/D 篇背单词 App</h1>
-          <p>按真题主题背核心词，闪卡判断会不会，错词自动进入复习池，适合每天 10-15 分钟冲刺。</p>
+          <h1>北京中考英语阅读 C/D 篇打印版 Excel 手册</h1>
+          <p>
+            这不是普通词汇表，而是把单词、真题例句、长难句、文章结构、命题考法和题干问法串成一套可打印复习系统。
+          </p>
+          <div className="hero-actions">
+            <a href="#sheets">查看 15 个 Sheet</a>
+            <a href="#student-flow">孩子怎么用</a>
+          </div>
         </div>
-        <div className="stats">
-          <Stat label="词条" value={vocabItems.length} />
-          <Stat label="已处理" value={`${percent}%`} />
-          <Stat label="错词" value={wrongCount} />
-        </div>
-      </header>
+        <aside className="target-card">
+          <span>最终产物</span>
+          <strong>Excel + PDF + 欧路导入包</strong>
+          <p>面向初三冲刺，解决 C篇/D篇读不懂、题干看不懂、主旨推理题失分。</p>
+        </aside>
+      </section>
 
-      <section className="toolbar" aria-label="学习控制">
-        <div className="mode-tabs">
-          <button className={mode === "flashcard" ? "active" : ""} onClick={() => setMode("flashcard")}>
-            闪卡
-          </button>
-          <button className={mode === "quiz" ? "active" : ""} onClick={() => setMode("quiz")}>
-            测验
-          </button>
-          <button className={mode === "wrong" ? "active" : ""} onClick={() => setMode("wrong")}>
-            错词本
-          </button>
+      <section className="section output-section">
+        <div className="section-title">
+          <h2>输出文件结构</h2>
+          <p>最终生成到 `/output` 文件夹，既能打印，也能导入欧路词典。</p>
         </div>
-        <label>
-          主题
-          <select
-            value={category}
-            onChange={(event) => {
-              setCategory(event.target.value);
-              setIndex(0);
-              setShowMeaning(false);
-            }}
-          >
-            {categories.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <button className="ghost" onClick={resetProgress}>
-          清空进度
-        </button>
-        <button className={autoSpeak ? "sound-toggle active" : "sound-toggle"} onClick={() => setAutoSpeak((value) => !value)}>
-          {autoSpeak ? "自动读音开" : "自动读音关"}
-        </button>
-        <label>
-          语音
-          <select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} disabled={!voices.length}>
-            {voices.length ? (
-              voices.map((voice) => (
-                <option key={voice.name} value={voice.name}>
-                  {cleanVoiceName(voice)}
-                </option>
-              ))
-            ) : (
-              <option>浏览器默认</option>
-            )}
-          </select>
-        </label>
-        <div className="speed-tabs" aria-label="读音速度">
-          <button className={speechSpeed === "slow" ? "active" : ""} onClick={() => setSpeechSpeed("slow")}>
-            慢速跟读
-          </button>
-          <button className={speechSpeed === "normal" ? "active" : ""} onClick={() => setSpeechSpeed("normal")}>
-            标准速度
-          </button>
+        <div className="output-grid">
+          {outputs.map((item) => (
+            <code key={item}>{item}</code>
+          ))}
         </div>
       </section>
 
-      <section className="workspace">
-        <aside className="progress-panel">
-          <h2>今日目标</h2>
-          <div className="progress-bar">
-            <span style={{ width: `${percent}%` }} />
-          </div>
-          <p>
-            已会 {knownCount} 个，待复习 {wrongCount} 个。建议先把错词清零，再进入下一主题。
-          </p>
-          <div className="mini-list">
-            {categories.slice(1, 8).map((item) => {
-              const total = vocabItems.filter((word) => word.category === item).length;
-              const done = vocabItems.filter((word) => word.category === item && progress[word.id]).length;
-              return (
-                <button key={item} onClick={() => setCategory(item)}>
-                  <span>{item}</span>
-                  <b>
-                    {done}/{total}
-                  </b>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
+      <section id="sheets" className="section">
+        <div className="section-title">
+          <h2>Excel 15 个 Sheet 设计</h2>
+          <p>每个 Sheet 都服务于 C/D 篇阅读理解能力，不是孤立背词。</p>
+        </div>
+        <div className="sheet-grid">
+          {sheets.map(([id, title, desc]) => (
+            <article className="sheet-card" key={id}>
+              <span>{id}</span>
+              <h3>{title}</h3>
+              <p>{desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
-        <StudyCard
-          mode={mode}
-          item={current}
-          total={filtered.length}
-          currentIndex={filtered.length ? (index % filtered.length) + 1 : 0}
-          showMeaning={showMeaning}
-          options={options}
-          quizChoice={quizChoice}
-          quizResult={quizResult}
-          speechSupported={speechSupported}
-          onFlip={() => setShowMeaning((value) => !value)}
-          onSpeak={() => speak(current?.word)}
-          onKnown={() => mark("known")}
-          onWrong={() => mark("wrong")}
-          onNext={nextCard}
-          onQuiz={(option) => {
-            if (!current) return;
-            setQuizChoice(option.id);
-            const isRight = option.id === current.id;
-            setQuizResult(isRight ? "right" : "wrong");
-            setProgress((items) => ({ ...items, [current.id]: isRight ? "known" : "wrong" }));
-          }}
-        />
+      <section className="section">
+        <div className="section-title">
+          <h2>核心能力链条</h2>
+          <p>最重要的实现原则：让孩子背到文章里，而不是只背单词本。</p>
+        </div>
+        <div className="chain">
+          {["单词", "真题例句", "句子结构", "段落功能", "文章结构", "命题考法"].map((item, index) => (
+            <div key={item}>
+              <b>{index + 1}</b>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="section-title">
+          <h2>C/D 篇文章结构模板</h2>
+          <p>孩子做阅读时先判断文章类型，再做题，主旨题和推理题会稳很多。</p>
+        </div>
+        <div className="structure-list">
+          {structures.map(([title, model, examples]) => (
+            <article key={title}>
+              <h3>{title}</h3>
+              <p className="model">{model}</p>
+              <p className="examples">适用文章：{examples}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="student-flow" className="section two-col">
+        <article>
+          <h2>C篇阅读步骤</h2>
+          <ol>
+            <li>看标题</li>
+            <li>判断文章类型</li>
+            <li>找每段功能</li>
+            <li>画结构图</li>
+            <li>再做题</li>
+          </ol>
+          <p className="formula">是什么 → 为什么 → 怎么证明 → 有什么用 → 总结</p>
+        </article>
+        <article>
+          <h2>D篇阅读步骤</h2>
+          <ol>
+            <li>找问题</li>
+            <li>找作者观点</li>
+            <li>找理由</li>
+            <li>找结论</li>
+            <li>再做主旨题和推理题</li>
+          </ol>
+          <p className="formula">问题 → 观点 → 理由1 → 理由2 → 理由3 → 结论</p>
+        </article>
+      </section>
+
+      <section className="section">
+        <div className="section-title">
+          <h2>打印与数据规则</h2>
+          <p>A4 横向、冻结首行、自动换行、黑白打印友好，保留手写备注和 □ 勾选列。</p>
+        </div>
+        <div className="rule-grid">
+          <div>
+            <h3>数据优先级</h3>
+            <p>优先使用 `beijing_reading_master_print.csv` 中的 499 个词；PDF 补充真题例句、长难句和结构拆解。</p>
+          </div>
+          <div>
+            <h3>例句要求</h3>
+            <p>优先从 C/D 篇原文抽取，8-25 个英文词；找不到完全匹配时标注“真题改写句”。</p>
+          </div>
+          <div>
+            <h3>长难句覆盖</h3>
+            <p>AI、心理、教育、科学、环保、社会媒体、题干类都要有足够样例。</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="section checklist">
+        <div className="section-title">
+          <h2>最终验收标准</h2>
+          <p>完成后按这份清单逐项检查。</p>
+        </div>
+        <div className="check-grid">
+          {acceptance.map((item) => (
+            <label key={item}>
+              <input type="checkbox" />
+              <span>{item}</span>
+            </label>
+          ))}
+        </div>
       </section>
     </main>
   );
-}
-
-function StudyCard({
-  mode,
-  item,
-  total,
-  currentIndex,
-  showMeaning,
-  options,
-  quizChoice,
-  quizResult,
-  speechSupported,
-  onFlip,
-  onSpeak,
-  onKnown,
-  onWrong,
-  onNext,
-  onQuiz,
-}: {
-  mode: Mode;
-  item?: VocabItem;
-  total: number;
-  currentIndex: number;
-  showMeaning: boolean;
-  options: VocabItem[];
-  quizChoice: string;
-  quizResult: "right" | "wrong" | "";
-  speechSupported: boolean;
-  onFlip: () => void;
-  onSpeak: () => void;
-  onKnown: () => void;
-  onWrong: () => void;
-  onNext: () => void;
-  onQuiz: (item: VocabItem) => void;
-}) {
-  if (!item) {
-    return (
-      <section className="card empty">
-        <h2>错词本已清空</h2>
-        <p>很好，回到闪卡继续新主题。</p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="card">
-      <div className="card-top">
-        <span>{item.type}</span>
-        <div className="card-tools">
-          <button className="speak-button" onClick={onSpeak} disabled={!speechSupported} aria-label={`播放 ${item.word} 的读音`}>
-            ▶ 读音
-          </button>
-          <b>
-            {currentIndex}/{total}
-          </b>
-        </div>
-      </div>
-
-      {mode === "quiz" ? (
-        <>
-          <p className="prompt">请选择这个英文的中文意思</p>
-          <h2>{item.word}</h2>
-          <p className="phonetic">{item.phonetic || " "}</p>
-          {!speechSupported && <p className="speech-warning">当前浏览器不支持自动发音，请换 Chrome、Safari 或 Edge 打开。</p>}
-          <div className="options">
-            {options.map((option) => (
-              <button
-                key={option.id}
-                className={[
-                  quizChoice === option.id ? "selected" : "",
-                  quizChoice && option.id === item.id ? "correct" : "",
-                  quizChoice === option.id && option.id !== item.id ? "incorrect" : "",
-                ].join(" ")}
-                onClick={() => onQuiz(option)}
-                disabled={Boolean(quizChoice)}
-              >
-                {option.meaning}
-              </button>
-            ))}
-          </div>
-          {quizResult && <p className={`result ${quizResult}`}>{quizResult === "right" ? "答对了，记为已会。" : `答错了，正确答案：${item.meaning}`}</p>}
-          <button className="primary" onClick={onNext}>
-            下一题
-          </button>
-        </>
-      ) : (
-        <>
-          <p className="prompt">{item.category}</p>
-          <h2>{item.word}</h2>
-          <p className="phonetic">{item.phonetic || " "}</p>
-          {!speechSupported && <p className="speech-warning">当前浏览器不支持自动发音，请换 Chrome、Safari 或 Edge 打开。</p>}
-          <button className="meaning" onClick={onFlip}>
-            {showMeaning ? item.meaning : "点一下显示中文"}
-          </button>
-          <div className="actions">
-            <button className="danger" onClick={onWrong}>
-              不认识
-            </button>
-            <button className="primary" onClick={onKnown}>
-              已会
-            </button>
-          </div>
-          <button className="ghost wide" onClick={onNext}>
-            跳过
-          </button>
-        </>
-      )}
-    </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function scoreVoice(a: SpeechSynthesisVoice, b: SpeechSynthesisVoice) {
-  return voiceScore(b) - voiceScore(a);
-}
-
-function voiceScore(voice: SpeechSynthesisVoice) {
-  const name = voice.name.toLowerCase();
-  const lang = voice.lang.toLowerCase();
-  let score = 0;
-  if (lang === "en-us") score += 20;
-  if (lang === "en-gb") score += 16;
-  if (name.includes("google")) score += 18;
-  if (name.includes("microsoft")) score += 18;
-  if (["aria", "jenny", "guy", "samantha", "daniel", "alex", "karen", "moira", "tessa"].some((item) => name.includes(item))) score += 14;
-  if (name.includes("premium") || name.includes("enhanced") || name.includes("natural")) score += 10;
-  if (name.includes("compact")) score -= 8;
-  if (voice.localService) score += 2;
-  return score;
-}
-
-function cleanVoiceName(voice: SpeechSynthesisVoice) {
-  return `${voice.name.replace(/^Microsoft\\s+/i, "").replace(/^Google\\s+/i, "")} · ${voice.lang}`;
 }
 
 export default App;
